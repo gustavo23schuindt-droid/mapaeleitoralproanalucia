@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mapa Eleitoral e Gestão Municipal - Ana Lúcia 2022/2026</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--navy:#11284e;--orange:#e87524;--paper:#f5f7fb;--ink:#1f2937;--muted:#667085;--border:#d9e0ea;--green:#16804a;--red:#b42318}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--paper);color:var(--ink)}
+header{background:linear-gradient(135deg,#0b1f3d,#173d71);color:#fff;padding:17px 20px}
+header h1{margin:0;font-size:22px} header p{margin:5px 0 0;opacity:.84;font-size:13px}
+main{max-width:1650px;margin:auto;padding:13px}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:10px}
+.metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px}
+.metric small{display:block;color:var(--muted)} .metric strong{font-size:23px;color:var(--navy)}
+.controls{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px}
+.buttons{display:flex;gap:6px;flex-wrap:wrap}
+button,.file-button{border:1px solid var(--border);background:#fff;color:var(--navy);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer;font:inherit}
+button.active{background:var(--navy);color:#fff}
+button.primary{background:var(--navy);color:#fff;border-color:var(--navy)} button.pdf{background:var(--orange);color:#fff;border-color:var(--orange)}
+label{font-size:12px;color:var(--muted);min-width:160px}
+input,select,textarea{display:block;margin-top:4px;width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;background:#fff}
+textarea{min-height:88px;resize:vertical}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:10px}
+#map{height:76vh;min-height:610px;background:#edf1f6;border:1px solid var(--border);border-radius:14px}
+.panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:13px;max-height:76vh;overflow:auto}
+.panel h2{margin:0 0 8px;color:var(--navy);font-size:17px}
+.status{padding:12px;border-radius:10px;background:#fff7df;border:1px solid #ead69f;margin-bottom:9px}
+.status.ok{background:#eaf7ef;border-color:#b8dfc8} .status.err{background:#feecec;border-color:#f1bcbc}
+.city{padding:9px 4px;border-bottom:1px solid #edf1f5;cursor:pointer;border-radius:8px}
+.city:hover,.city.selected{background:#f0f4fa} .city strong{color:var(--navy)} .vote{float:right;color:var(--orange);font-weight:800}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px} .tag{font-size:10px;background:#edf2f8;color:var(--navy);padding:3px 6px;border-radius:999px;font-weight:700}
+.tag.uem{background:#e7f6ed;color:#12663d} .tag.str{background:#e8efff;color:#174c9b}
+.legend{background:#fff;padding:9px 11px;border-radius:10px;box-shadow:0 2px 12px #0002;line-height:1.35}
+.legend i{float:left;width:15px;height:15px;margin-right:7px;border:1px solid #777}
+.note{font-size:11px;color:var(--muted);margin-top:7px}
+.city-label{background:transparent;border:0;border-radius:0;padding:0;color:#111827;font-size:9px;font-weight:800;text-align:center;line-height:1.05;box-shadow:none;white-space:nowrap;text-shadow:0 0 2px #fff,0 0 4px #fff}
+.city-label .num{color:#c95616;font-size:10px} .city-label.big{font-size:11px;padding:3px 5px} .city-label.big .num{font-size:12px}
+.editor{display:none}
+.editor.open{display:block}
+.editor-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1500;padding:18px}
+.editor-backdrop.open{display:flex;align-items:center;justify-content:center}
+.editor-modal{width:min(620px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;border:1px solid var(--border);padding:18px;box-shadow:0 20px 60px #0004}
+.editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.editor-head h3{margin:0;color:var(--navy)}
+.close-editor{border-radius:8px;padding:7px 10px;font-size:18px;line-height:1}
+.comment-hint{font-size:12px;color:var(--muted);margin-bottom:10px} .editor h3{margin:0 0 8px;color:var(--navy)}
+.editor-grid{display:grid;gap:8px} .save-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.feedback{font-size:12px;color:var(--green);min-height:17px;margin-top:5px}
+.print-title{display:none}
+@media(max-width:950px){.metrics{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}#map{height:70vh;min-height:540px}.panel{max-height:none}}
+@media print{
+  @page{size:A3 landscape;margin:8mm}
+  body{background:#fff}
+  header,.controls,.panel,.status,.note{display:none!important}
+  main{max-width:none;padding:0}
+  .metrics{grid-template-columns:repeat(5,1fr);margin-bottom:5mm}
+  .metric{break-inside:avoid;padding:7px}
+  .layout{display:block}
+  #map{height:170mm!important;min-height:0;border:1px solid #777}
+  .print-title{display:block;text-align:center;font-size:18px;font-weight:800;margin:0 0 4mm;color:#11284e}
+  .leaflet-control-zoom,.leaflet-popup,.leaflet-tooltip{display:none!important}
+  .city-label{font-size:7px;padding:1px 2px;box-shadow:none} .city-label .num{font-size:8px}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>Mapa Eleitoral e Gestão Municipal - Professora Ana Lúcia</h1>
+<p>Votação de 2022, consulta territorial e cadastro local de coordenação para 2026.</p>
+</header>
+<main>
+<div class="print-title">Votação da Professora Ana Lúcia - Deputada Estadual - Paraná - 2022</div>
+<section class="metrics">
+<div class="metric"><small>Municípios do Paraná</small><strong id="allCount">399</strong></div>
+<div class="metric"><small>Votos no Paraná</small><strong>10.223</strong></div>
+<div class="metric"><small>Municípios com voto conhecido</small><strong>68</strong></div>
+<div class="metric"><small>Votos mapeados</small><strong>9,926</strong></div>
+<div class="metric"><small>Maior votação</small><strong>7.134</strong><small>Maringá</small></div>
+</section>
+
+<section class="controls">
+<div><small style="color:var(--muted)">Destacar território</small><div class="buttons" id="buttons">
+<button class="active" data-f="all">Todos com votação</button><button data-f="rmm">RMM</button>
+<button data-f="uem">Câmpus UEM</button><button data-f="strategic">Cidades estratégicas</button></div></div>
+<label>Buscar município<input id="search" placeholder="Ex.: Londrina"></label>
+<label>Rótulos no mapa<select id="labels"><option value="zoom">Conforme o zoom</option><option value="all">Mostrar todos</option><option value="none">Ocultar</option></select></label>
+<label>Ordenar lista<select id="sort"><option value="votes">Mais votados</option><option value="name">Ordem alfabética</option></select></label>
+<button id="printPdf" class="pdf" type="button">Gerar PDF do território selecionado</button>
+<button id="exportNotes" type="button">Exportar cadastros</button>
+<label class="file-button">Importar cadastros<input id="importNotes" type="file" accept=".json" hidden></label>
+</section>
+
+<section class="layout">
+<div>
+<div id="status" class="status">Carregando os limites oficiais dos municípios do Paraná...</div>
+<div id="map"></div>
+<div class="note">Os cadastros de coordenador, telefone e observações ficam gravados neste navegador. Exporte periodicamente o arquivo JSON para backup.</div>
+</div>
+<aside class="panel">
+<h2>Municípios com votação conhecida</h2><p style="margin:0 0 8px;font-size:12px;color:var(--muted)">Clique no nome de um município para abrir a aba de comentários e cadastrar coordenação, WhatsApp, observações e meta.</p>
+<div id="list"></div>
+</aside>
+</section>
+
+<div id="editorBackdrop" class="editor-backdrop" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+  <section id="editor" class="editor editor-modal">
+    <div class="editor-head">
+      <h3 id="editorTitle">Comentários do município</h3>
+      <button id="closeEditor" class="close-editor" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div class="comment-hint">Clique em qualquer município na barra lateral para abrir esta ficha e registrar a organização local.</div>
+    <div class="editor-grid">
+      <label>Coordenador municipal<input id="coord" placeholder="Nome da pessoa responsável"></label>
+      <label>Telefone / WhatsApp<input id="phone" placeholder="(44) 99999-9999"></label>
+      <label>Observações<textarea id="obs" placeholder="Lideranças, dobradas, compromissos, demandas e próximos passos"></textarea></label>
+      <label>Meta de votos para 2026<input id="goal" type="number" min="0" placeholder="Ex.: 500"></label>
+    </div>
+    <div class="save-row">
+      <button id="saveInfo" class="primary" type="button">Salvar informações</button>
+      <button id="clearInfo" type="button">Limpar cadastro</button>
+    </div>
+    <div id="feedback" class="feedback" aria-live="polite"></div>
+  </section>
+</div>
+
+<section style="display:none">
+</aside>
+</section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const electoral={"Maringá": {"votes": 7134, "rmm": true, "uem": true, "strategic": false}, "Sarandi": {"votes": 470, "rmm": true, "uem": false, "strategic": false}, "Paiçandu": {"votes": 246, "rmm": true, "uem": false, "strategic": false}, "Curitiba": {"votes": 228, "rmm": false, "uem": false, "strategic": true}, "Londrina": {"votes": 158, "rmm": false, "uem": false, "strategic": true}, "Marialva": {"votes": 134, "rmm": true, "uem": false, "strategic": false}, "Mandaguaçu": {"votes": 129, "rmm": true, "uem": false, "strategic": false}, "Jandaia do Sul": {"votes": 115, "rmm": true, "uem": false, "strategic": false}, "Mandaguari": {"votes": 111, "rmm": true, "uem": false, "strategic": false}, "Nova Esperança": {"votes": 108, "rmm": true, "uem": false, "strategic": false}, "Campo Mourão": {"votes": 85, "rmm": false, "uem": false, "strategic": true}, "Astorga": {"votes": 78, "rmm": true, "uem": false, "strategic": false}, "Paranavaí": {"votes": 63, "rmm": false, "uem": false, "strategic": true}, "Cianorte": {"votes": 54, "rmm": false, "uem": true, "strategic": false}, "Apucarana": {"votes": 54, "rmm": false, "uem": false, "strategic": true}, "Arapongas": {"votes": 44, "rmm": false, "uem": false, "strategic": false}, "Umuarama": {"votes": 35, "rmm": false, "uem": true, "strategic": false}, "Colorado": {"votes": 30, "rmm": false, "uem": false, "strategic": false}, "Itambé": {"votes": 29, "rmm": true, "uem": false, "strategic": false}, "Foz do Iguaçu": {"votes": 26, "rmm": false, "uem": false, "strategic": true}, "Floresta": {"votes": 25, "rmm": true, "uem": false, "strategic": false}, "Atalaia": {"votes": 25, "rmm": true, "uem": false, "strategic": false}, "Doutor Camargo": {"votes": 25, "rmm": true, "uem": false, "strategic": false}, "São Jorge do Ivaí": {"votes": 23, "rmm": true, "uem": false, "strategic": false}, "São José dos Pinhais": {"votes": 22, "rmm": false, "uem": false, "strategic": false}, "Ivaiporã": {"votes": 21, "rmm": false, "uem": true, "strategic": false}, "Toledo": {"votes": 20, "rmm": false, "uem": false, "strategic": false}, "Santa Fé": {"votes": 19, "rmm": true, "uem": false, "strategic": false}, "Ponta Grossa": {"votes": 19, "rmm": false, "uem": false, "strategic": false}, "Lobato": {"votes": 18, "rmm": true, "uem": false, "strategic": false}, "Cascavel": {"votes": 17, "rmm": false, "uem": false, "strategic": false}, "Munhoz de Mello": {"votes": 16, "rmm": true, "uem": false, "strategic": false}, "Engenheiro Beltrão": {"votes": 16, "rmm": false, "uem": false, "strategic": false}, "Terra Boa": {"votes": 15, "rmm": false, "uem": false, "strategic": false}, "Ourizona": {"votes": 15, "rmm": true, "uem": false, "strategic": false}, "Alto Paraná": {"votes": 14, "rmm": false, "uem": false, "strategic": false}, "Paranacity": {"votes": 14, "rmm": false, "uem": false, "strategic": false}, "Rolândia": {"votes": 13, "rmm": false, "uem": false, "strategic": false}, "Santa Cruz de Monte Castelo": {"votes": 13, "rmm": false, "uem": false, "strategic": false}, "Iguaraçu": {"votes": 13, "rmm": true, "uem": false, "strategic": false}, "Barbosa Ferraz": {"votes": 12, "rmm": false, "uem": false, "strategic": false}, "Araruna": {"votes": 12, "rmm": false, "uem": false, "strategic": false}, "Cambé": {"votes": 12, "rmm": false, "uem": false, "strategic": false}, "Presidente Castelo Branco": {"votes": 12, "rmm": true, "uem": false, "strategic": false}, "Uniflor": {"votes": 11, "rmm": false, "uem": false, "strategic": false}, "Ivatuba": {"votes": 11, "rmm": true, "uem": false, "strategic": false}, "Flórida": {"votes": 10, "rmm": true, "uem": false, "strategic": false}, "Terra Rica": {"votes": 10, "rmm": false, "uem": false, "strategic": false}, "Marechal Cândido Rondon": {"votes": 10, "rmm": false, "uem": false, "strategic": false}, "Paraíso do Norte": {"votes": 9, "rmm": false, "uem": false, "strategic": false}, "Peabiru": {"votes": 9, "rmm": false, "uem": false, "strategic": false}, "Iretama": {"votes": 9, "rmm": false, "uem": false, "strategic": false}, "Ângulo": {"votes": 9, "rmm": true, "uem": false, "strategic": false}, "Jacarezinho": {"votes": 8, "rmm": false, "uem": false, "strategic": false}, "Jussara": {"votes": 8, "rmm": false, "uem": false, "strategic": false}, "Floraí": {"votes": 8, "rmm": true, "uem": false, "strategic": false}, "Marumbi": {"votes": 8, "rmm": false, "uem": false, "strategic": false}, "Paranaguá": {"votes": 8, "rmm": false, "uem": false, "strategic": false}, "Pontal do Paraná": {"votes": 7, "rmm": false, "uem": false, "strategic": false}, "Moreira Sales": {"votes": 7, "rmm": false, "uem": false, "strategic": false}, "Japurá": {"votes": 7, "rmm": false, "uem": false, "strategic": false}, "Quinta do Sol": {"votes": 7, "rmm": false, "uem": false, "strategic": false}, "Goioerê": {"votes": 6, "rmm": false, "uem": true, "strategic": false}, "Cambira": {"votes": 6, "rmm": true, "uem": false, "strategic": false}, "Bom Sucesso": {"votes": 5, "rmm": true, "uem": false, "strategic": false}, "Cruzeiro do Sul": {"votes": 5, "rmm": false, "uem": false, "strategic": false}, "Cidade Gaúcha": {"votes": 3, "rmm": false, "uem": true, "strategic": false}, "Diamante do Norte": {"votes": 3, "rmm": false, "uem": true, "strategic": false}};
+const services=[
+  "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/municipios_2024/MapServer/0/query",
+  "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/municipios_2024/FeatureServer/0/query",
+  "https://geopr.iat.pr.gov.br/server/rest/services/municipios_2023/MapServer/0/query"
+];
+let activeService=services[0];
+const STORAGE_KEY="anaLuciaMunicipios2026";
+let saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
+let currentCity=null, filter="all", allLayer=L.featureGroup(), selectedLayers={}, labelMarkers={}, allFeatures=0;
+const map=L.map("map",{zoomControl:true,attributionControl:false,preferCanvas:true}).setView([-24.65,-51.45],7);
+allLayer.addTo(map);
+
+function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+const aliases={"munhozdemelo":"munhozdemello"};
+const byNorm={};Object.entries(electoral).forEach(([name,d])=>byNorm[norm(name)]={name,...d});
+function lookup(name){let k=norm(name);if(aliases[k])k=aliases[k];return byNorm[k]}
+function color(v){return v>1000?"#5a1a83":v>300?"#87349f":v>150?"#b94da4":v>100?"#df5a8b":v>50?"#ef7a4c":v>20?"#f4a340":v>10?"#f8c85a":v>4?"#fde28b":"#fff1bf"}
+function visible(d){return filter==="all"||filter==="rmm"&&d.rmm||filter==="uem"&&d.uem||filter==="strategic"&&d.strategic}
+function styleSelected(d){const on=visible(d);return{color:d.uem?"#16804a":d.rmm?"#153a72":d.strategic?"#111827":"#7b8490",weight:on?(d.uem?2.5:1.9):.7,dashArray:d.uem?"5 4":null,fillColor:on?color(d.votes):"#d8dde5",fillOpacity:on?.92:.16}}
+function rings(r){return r.map(ring=>ring.map(p=>[p[1],p[0]]))}
+function labelIcon(d){const big=d.votes>100;return L.divIcon({className:"",html:`<div class="city-label ${big?"big":""}">${d.name}<br><span class="num">${d.votes.toLocaleString("pt-BR")}</span></div>`,iconSize:null,iconAnchor:[0,0]})}
+function popup(d){const s=saved[d.name]||{};let tags=[];if(d.rmm)tags.push("Região Metropolitana de Maringá");if(d.uem)tags.push("Câmpus da UEM");if(d.strategic)tags.push("Cidade estratégica");return `<b>${d.name}</b><br><b>${d.votes.toLocaleString("pt-BR")} votos</b><br>${(d.votes/10223*100).toFixed(2).replace(".",",")}% da votação estadual<br>${tags.join("<br>")}${s.coordinator?`<hr><b>Coordenador:</b> ${s.coordinator}<br><b>Telefone:</b> ${s.phone||"-"}`:''}`}
+
+
+async function fetchJsonWithTimeout(url, timeoutMs=18000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const response=await fetch(url,{signal:controller.signal,cache:"no-store"});
+    if(!response.ok) throw new Error("HTTP "+response.status);
+    const data=await response.json();
+    if(data.error) throw new Error(data.error.message||"Erro do serviço");
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function tryServices(buildParams){
+  let lastError=null;
+  for(const endpoint of services){
+    try{
+      const params=buildParams();
+      const data=await fetchJsonWithTimeout(endpoint+"?"+params.toString());
+      activeService=endpoint;
+      return data;
+    }catch(error){
+      lastError=error;
+      console.warn("Falha no serviço",endpoint,error);
+    }
+  }
+  throw lastError||new Error("Nenhum serviço territorial respondeu.");
+}
+
+async function getIds(){
+  const data=await tryServices(()=>new URLSearchParams({
+    where:"1=1",
+    returnIdsOnly:"true",
+    f:"json"
+  }));
+  return data.objectIds||data.objectids||[];
+}
+async function getChunk(ids){
+  const data=await tryServices(()=>new URLSearchParams({
+    objectIds:ids.join(","),
+    outFields:"nome",
+    returnGeometry:"true",
+    outSR:"4326",
+    returnTrueCurves:"false",
+    geometryPrecision:"5",
+    f:"json"
+  }));
+  return data.features||[];
+}
+function addFeature(f){const name=f.attributes?.nome||f.attributes?.NOME||"Município";const d=lookup(name);const poly=L.polygon(rings(f.geometry.rings),d?styleSelected(d):{color:"#9da7b4",weight:.55,fillColor:"#e4e8ed",fillOpacity:.52});poly.bindTooltip(d?`${d.name}: ${d.votes.toLocaleString("pt-BR")} votos`:name,{sticky:true});if(d){selectedLayers[norm(d.name)]={poly,d};const center=poly.getBounds().getCenter();const marker=L.marker(center,{icon:labelIcon(d),interactive:false});marker.addTo(map);labelMarkers[norm(d.name)]=marker}poly.addTo(allLayer);allFeatures++}
+
+function getVisibleTerritoryBounds(){
+  const bounds = L.latLngBounds([]);
+  Object.values(selectedLayers).forEach(({poly,d})=>{
+    if(visible(d)) bounds.extend(poly.getBounds());
+  });
+  return bounds.isValid() ? bounds : allLayer.getBounds();
+}
+
+function focusVisibleTerritory(forPrint=false){
+  const bounds = getVisibleTerritoryBounds();
+  if(!bounds || !bounds.isValid()) return;
+  map.fitBounds(bounds,{
+    padding: forPrint ? [45,45] : [30,30],
+    animate:false,
+    maxZoom: forPrint ? 10 : 11
+  });
+  map.invalidateSize();
+}
+
+function refreshLabels(){const mode=document.getElementById("labels").value,z=map.getZoom();Object.entries(labelMarkers).forEach(([k,m])=>{const d=selectedLayers[k].d;let show=visible(d)&&mode!=="none";if(mode==="zoom")show=show&&(z>=8||d.votes>=50);if(show){if(!map.hasLayer(m))m.addTo(map)}else if(map.hasLayer(m))map.removeLayer(m)})}
+function openEditor(d){currentCity=d.name;document.getElementById("editor").classList.add("open");document.getElementById("editorBackdrop").classList.add("open");document.getElementById("editorTitle").textContent=`Cadastro - ${d.name} (${d.votes.toLocaleString("pt-BR")} votos)`;const s=saved[d.name]||{};coord.value=s.coordinator||"";phone.value=s.phone||"";obs.value=s.notes||"";goal.value=s.goal||"";feedback.textContent="";document.querySelectorAll(".city").forEach(x=>x.classList.toggle("selected",x.dataset.n===d.name))}
+function refresh(){Object.values(selectedLayers).forEach(x=>x.poly.setStyle(styleSelected(x.d)));refreshLabels();const q=norm(search.value);let rows=Object.values(byNorm).filter(d=>visible(d)&&(!q||norm(d.name).includes(q)));rows.sort(sort.value==="name"?(a,b)=>a.name.localeCompare(b.name,"pt-BR"):(a,b)=>b.votes-a.votes);list.innerHTML=rows.map(d=>{const s=saved[d.name]||{};return `<div class="city" data-n="${d.name}"><span class="vote">${d.votes.toLocaleString("pt-BR")}</span><strong>${d.name}</strong><div class="tags">${d.rmm?'<span class="tag">RMM</span>':''}${d.uem?'<span class="tag uem">UEM</span>':''}${d.strategic?'<span class="tag str">Estratégica</span>':''}${s.coordinator?'<span class="tag">Coordenação cadastrada</span>':''}</div></div>`}).join("");document.querySelectorAll(".city").forEach(el=>el.onclick=()=>{const x=selectedLayers[norm(el.dataset.n)];const d=byNorm[norm(el.dataset.n)];openEditor(d);if(x){map.fitBounds(x.poly.getBounds(),{maxZoom:10,padding:[30,30]})}})}
+async function load(){try{const ids=await getIds();allCount.textContent=ids.length;for(let i=0;i<ids.length;i+=35){(await getChunk(ids.slice(i,i+35))).forEach(addFeature);status.textContent=`Carregando limites municipais: ${Math.min(i+35,ids.length)} de ${ids.length}...`}map.fitBounds(allLayer.getBounds(),{padding:[8,8]});status.className="status ok";status.textContent=`Mapa carregado: ${allFeatures} municípios.`;setTimeout(()=>status.style.display="none",2400);refresh()}catch(e){status.className="status err";status.innerHTML="<b>Não foi possível carregar todos os limites municipais.</b><br>"+e.message}}
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+document.querySelectorAll("#buttons button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#buttons button").forEach(x=>x.classList.remove("active"));b.classList.add("active");filter=b.dataset.f;refresh();setTimeout(()=>focusVisibleTerritory(false),180)});
+search.oninput=refresh;sort.onchange=refresh;labels.onchange=refreshLabels;map.on("zoomend",refreshLabels);
+saveInfo.onclick=()=>{if(!currentCity)return;saved[currentCity]={coordinator:coord.value.trim(),phone:phone.value.trim(),notes:obs.value.trim(),goal:goal.value.trim()};localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));feedback.textContent="Informações salvas neste navegador.";refresh()};
+clearInfo.onclick=()=>{if(!currentCity)return;if(confirm("Apagar o cadastro deste município?")){delete saved[currentCity];localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));openEditor(byNorm[norm(currentCity)]);refresh()}};
+closeEditor.onclick=()=>{editorBackdrop.classList.remove("open");editor.classList.remove("open")};
+editorBackdrop.addEventListener("click",e=>{if(e.target===editorBackdrop){editorBackdrop.classList.remove("open");editor.classList.remove("open")}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){editorBackdrop.classList.remove("open");editor.classList.remove("open")}});
+printPdf.onclick=()=>{
+  document.body.classList.add("printing-territory");
+  refreshLabels();
+  map.invalidateSize();
+  focusVisibleTerritory(true);
+  setTimeout(()=>{
+    map.invalidateSize();
+    focusVisibleTerritory(true);
+    setTimeout(()=>window.print(),450);
+  },350);
+};
+window.addEventListener("afterprint",()=>{
+  document.body.classList.remove("printing-territory");
+  map.invalidateSize();
+  setTimeout(()=>focusVisibleTerritory(false),150);
+});
+exportNotes.onclick=()=>download("cadastros_municipais_ana_lucia_2026.json",JSON.stringify(saved,null,2),"application/json");
+importNotes.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{saved=JSON.parse(r.result);localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));refresh();alert("Cadastros importados.")}catch{alert("Arquivo inválido.")}};r.readAsText(f)};
+const legend=L.control({position:"bottomright"});legend.onAdd=()=>{const d=L.DomUtil.create("div","legend");d.innerHTML="<b>Votos em 2022</b><br>"+[[1,4],[5,10],[11,20],[21,50],[51,100],[101,150],[151,300],[301,1000],[1001,"+"]].map(x=>`<i style="background:${color(x[0])}"></i>${x[1]==="+"?"mais de 1.000":x[0]+"-"+x[1]}<br>`).join("")+"<small>Cinza: sem dado exibido<br>Borda tracejada: UEM</small>";return d};legend.addTo(map);
+window.addEventListener("offline",()=>{
+  const s=document.getElementById("status");
+  s.style.display="block";
+  s.className="status err";
+  s.innerHTML="<b>Sem conexão com a internet.</b><br>O mapa precisa acessar a malha territorial oficial na primeira abertura.";
+});
+window.addEventListener("online",()=>{if(allFeatures===0)load()});
+refresh();load();
+</script>
+</body></html>
